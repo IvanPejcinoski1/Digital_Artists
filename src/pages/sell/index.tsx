@@ -12,7 +12,7 @@ import {
 } from "src/components/ui/select";
 import { Textarea } from "src/components/ui/textarea";
 import Image from "next/image";
-import { useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import {
   Tooltip,
   TooltipContent,
@@ -25,18 +25,20 @@ interface FormData {
   productPrice: string;
   productCategory: string;
   productDescription: string;
-  productFile: File;
 }
 
 const Sell = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState<
+    string | null
+  >(null);
   const [isFocused, setIsFocused] = useState(false); // Track if the input is focused
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
     watch,
+    control,
   } = useForm<FormData>();
   const productNameValue = watch("productName"); // Watch the product name value
 
@@ -44,27 +46,31 @@ const Sell = () => {
     fileInputRef.current?.click(); // Triggers file selection dialog
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePreviewImageUpload = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       const imageUrl = URL.createObjectURL(file);
-      setSelectedImage(imageUrl); // Preview the selected image
+      setSelectedPreviewImage(imageUrl); // Preview the selected image
     }
   };
-  const onSubmit = async (data: FormData) => {
-    // Trigger file validation manually
-
-    // Log the form data
-    console.log("Form Data submitted:", data);
-
-    // You can now proceed with form submission, e.g., send to an API or update state
-  };
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const onSubmit: SubmitHandler<FormData> = async (data: FormData) => {
+    const formDataWithFile = {
+      ...data,
+      productFile: selectedFile,
+      previewImage: selectedPreviewImage,
+    };
+
+    console.log("Form Data submitted:", formDataWithFile);
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files ? event.target.files[0] : null;
-    setSelectedFile(file);
+    console.log(file);
+
+    setSelectedFile(file); // Set a single file
   };
 
   const handleRemoveFile = () => {
@@ -74,12 +80,9 @@ const Sell = () => {
   return (
     <div className="relative">
       <div className="mt-24 flex items-center justify-center w-1/2 mx-auto relative">
-        <div className="flex w-full z-50">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex w-full z-50">
           <div className="w-1/2">
-            <form
-              className="w-11/12 flex flex-col justify-between h-full"
-              onSubmit={handleSubmit(onSubmit)}
-            >
+            <div className="w-11/12 flex flex-col justify-between h-full">
               {/* Conditionally render product name input or display the product name */}
               {isFocused ||
               productNameValue == undefined ||
@@ -118,16 +121,26 @@ const Sell = () => {
                 </div>
 
                 <div className="ms-8">
-                  <Select {...register("productCategory")} required>
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Product Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ui_kits">UI Kits</SelectItem>
-                      <SelectItem value="icons">Icons</SelectItem>
-                      <SelectItem value="images">Images</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="productCategory"
+                    control={control}
+                    rules={{ required: "Category is required" }} // Add validation if needed
+                    render={({ field }) => (
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue placeholder="Product Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ui_kits">UI Kits</SelectItem>
+                          <SelectItem value="icons">Icons</SelectItem>
+                          <SelectItem value="images">Images</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
               </div>
               {selectedFile ? (
@@ -144,7 +157,7 @@ const Sell = () => {
                 <div className="flex items-center h-[56px] mt-1 mb-4">
                   <label
                     htmlFor="file-input"
-                    className="bg-blue-500 text-white py-2 px-4 rounded-md cursor-pointer hover:bg-blue-600 w-32"
+                    className="bg-blue-500 text-white py-2 px-4 rounded-md cursor-pointer hover:bg-blue-600 w-32 z-50"
                   >
                     Upload a file
                   </label>
@@ -163,10 +176,7 @@ const Sell = () => {
                     id="file-input"
                     type="file"
                     accept=".jpg, .jpeg, .png, .txt"
-                    className="hidden"
-                    {...register("productFile", {
-                      required: "File is required",
-                    })} // Add required validation here
+                    className="w-1 absolute left-16 "
                     onChange={handleFileChange}
                     required
                   />
@@ -192,28 +202,28 @@ const Sell = () => {
                   Upload Product
                 </Button>
               </div>
-            </form>
+            </div>
           </div>
 
           <div
-            className="relative bg-zinc-100 w-1/2 overflow-hidden rounded-xl group hover:cursor-pointer flex flex-col items-center justify-center"
+            className="relative bg-zinc-100  overflow-hidden w-1/2 rounded-xl group hover:cursor-pointer flex flex-col items-center justify-center "
             onClick={handleClick}
           >
-            {selectedImage ? (
+            {selectedPreviewImage ? (
               <div className="relative h-full w-full">
                 <Image
-                  src={selectedImage}
+                  src={selectedPreviewImage}
                   alt="Product image"
                   fill
                   loading="eager"
-                  className="cursor-pointer object-fit h-full w-full object-cover object-left "
+                  className="cursor-pointer object-fit h-full w-full object-cover object-left z-50"
                 />
                 <CircleX
                   className="z-50 text-gray-700 top-[14px] right-[14px] absolute animate-pulse hover:text-gray-500 transition-colors duration-1500"
                   size={42}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedImage(null);
+                    setSelectedPreviewImage(null);
                   }}
                 />
               </div>
@@ -225,7 +235,7 @@ const Sell = () => {
                   width={150}
                   height={150}
                   loading="eager"
-                  className="cursor-pointer"
+                  className="cursor-pointer "
                 />
                 <p className="text-center mt-2">Upload Your Preview Image</p>
               </>
@@ -234,11 +244,12 @@ const Sell = () => {
               type="file"
               accept="image/*"
               ref={fileInputRef}
-              className="hidden z-50"
-              onChange={handleImageUpload}
-            />
+              className="w-[1px] h-[1px] absolute "
+              onChange={handlePreviewImageUpload}
+              required
+            />{" "}
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
